@@ -57,46 +57,89 @@ void SystemClock_Config(void);
 
 /* USER CODE END 0 */
 
+void transmit(char v){
+	while( !SPI1->SR >> 1 ){ //Checking transmit buffer empty flag. If 0, then it is not empty
+	}
+	SPI1->DR = v;
+}
+void transmitWord(char* word){
+	int counter = 0;
+	char temp = word[counter];
+	
+	while( temp != '\0'){
+		transmit(temp);
+		temp = word[++counter];
+	}
+}
+
+
 /**
   * @brief  The application entry point.
   * @retval int
   */
 int main(void)
 {
-  /* USER CODE BEGIN 1 */
 
-  /* USER CODE END 1 */
-
-  /* MCU Configuration--------------------------------------------------------*/
-
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
-
-  /* Configure the system clock */
   SystemClock_Config();
+	
+	RCC->AHBENR |= 1<<19 | 1<<18 | 1<<17;	 //Enable clock IOPC & IOPB & IOPA
+	RCC->APB2ENR |= 1<<12; //Enable clock for SPI1
+	
+	//Setting up LEDs for testing + error checking.
+	GPIOC->MODER |= 0x55000;
+	GPIOC->OTYPER = 0x000;
+	GPIOC->OSPEEDR = 0x0;
+	GPIOC->PUPDR = 0x0;
+	
+	//Baud Rate Do we need to configure this? Max is 10MHz, which is the clockrate of the Discovery Board
+	//SPI1->BR = HAL_RCC_GetHCLKFreq()/115200;
+	SPI1->CR1 |= 0x7<<5; //Baud Rate f/256.
+	
+	//CRC length to 16 bits TODO
+	SPI1->CR1 |= 1<<11; 
+	
+	//Set pins PB3-PB5 to alternative mode. Because we aren't doing an SPI receive, we aren't using the MISO
+	GPIOB->MODER |= 0x980;
+	GPIOA->MODER |= 2<<30; //NSS (Slave Selector) is PA15
+	
+	//TODO: do we need to do anything more to setup the altnerative functions?
+	
+	//select Simple Mode through BIDIMONE and BIDIOE
+	SPI1->CR1 |= 1<<15;		//TODO I don't think we need this. BIIMOE (bidirectional data mode enabled)
+	SPI1->CR1 |= 1<<14;		//Output Enabled a.k.a transmit-only mode
+	SPI1->CR1 |= 1<<2;		//Master Selection
+	//DMD expects 16-bit data
+	SPI1->CR2 |= 0xf << 8;	//Bits [8:11] = 1111
 
-  /* USER CODE BEGIN SysInit */
 
-  /* USER CODE END SysInit */
-
-  /* Initialize all configured peripherals */
-  /* USER CODE BEGIN 2 */
-
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-  }
-  /* USER CODE END 3 */
+	SPI1->CR1 |= 1<<6; //SPI Enable
+	GPIOC->ODR |= (1<<9);
+	while(1){
+		GPIOC->ODR &= ~(1<<6);	//Sanity check. Turning LED
+		GPIOC->ODR &= ~(1<<7);	//Sanity check. Turning LED
+		GPIOC->ODR &= ~(1<<8);	//Sanity check. Turning LED
+		HAL_Delay(1000);
+		
+		
+		GPIOC->ODR ^= (1<<9);
+		while (!SPI1->SR >> 7) //busy flag is on do nothing.
+		{
+			GPIOC->ODR |= (1<<6);	//Sanity check. Turning on a color
+		}
+		if(SPI1->SR >> 8){
+			GPIOC->ODR |= (1<<8);		//Frame error.
+		}
+		if(SPI1->SR >> 3){
+			GPIOC->ODR |= (1<<7);		//Underrun error.
+		}
+		
+		
+		char message[] = "Hi";
+		//while there is still data to send, and the transfer buffer has room, send the next letter.
+		transmitWord(message);
+	}
 }
 
 /**

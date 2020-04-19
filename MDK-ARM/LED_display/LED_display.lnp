@@ -1,0 +1,25 @@
+--cpu Cortex-M0
+"led_display\startup_stm32f072xb.o"
+"led_display\main.o"
+"led_display\stm32f0xx_it.o"
+"led_display\stm32f0xx_hal_msp.o"
+"led_display\stm32f0xx_hal_tim.o"
+"led_display\stm32f0xx_hal_tim_ex.o"
+"led_display\stm32f0xx_hal_rcc.o"
+"led_display\stm32f0xx_hal_rcc_ex.o"
+"led_display\stm32f0xx_hal.o"
+"led_display\stm32f0xx_hal_i2c.o"
+"led_display\stm32f0xx_hal_i2c_ex.o"
+"led_display\stm32f0xx_hal_gpio.o"
+"led_display\stm32f0xx_hal_dma.o"
+"led_display\stm32f0xx_hal_cortex.o"
+"led_display\stm32f0xx_hal_pwr.o"
+"led_display\stm32f0xx_hal_pwr_ex.o"
+"led_display\stm32f0xx_hal_flash.o"
+"led_display\stm32f0xx_hal_flash_ex.o"
+"led_display\stm32f0xx_hal_exti.o"
+"led_display\system_stm32f0xx.o"
+--library_type=microlib --strict --scatter "LED_display\LED_display.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "LED_display.map" -o LED_display\LED_display.axf
