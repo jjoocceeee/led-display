@@ -88,6 +88,7 @@ int main(void)
 
 	RCC->AHBENR |= 1<<19;	//Enable clock
 	RCC->APB1ENR |= 1<<18; //Enable clock for USART3
+	RCC->AHBENR |= 1<<17;	//Enable peripheral clock for push buttons
 	
 	//Setting the Baud Rate to 115200
 	USART3->BRR = HAL_RCC_GetHCLKFreq()/115200;
@@ -105,16 +106,31 @@ int main(void)
 	GPIOC->OSPEEDR = 0x0;
 	GPIOC->PUPDR = 0x0;
 	
+	//Setting up Button
+	GPIOA->MODER &= ~3;
+	GPIOA->OSPEEDR &= ~3;	//Low speed
+	GPIOA->PUPDR |= 0x2; //Pull down resistor
+	
+	//Setting up Push Button Interrupt
+	SYSCFG->EXTICR[1] |= 0x0;
+	EXTI->IMR |= 0x1;
+	EXTI->EMR |= 0x1;
+	EXTI->RTSR |= 0x1;
+	NVIC_EnableIRQ(EXTI0_1_IRQn);
+	NVIC_SetPriority(EXTI0_1_IRQn, 3);
+	
+	
 	USART3->CR1 |= 0xc;	//Enable Receiver + Transmitter
-	USART3->CR1 |= 5;
+	//USART3->CR1 |= 5;	//Enable Receiver Interrupt
+	//USART3->CR1 |= 1<<13; //Mute Mode Enable. Can switch between Mute and Wake modes.
 	USART3->CR1 |= 0x1;	//Enable USART (Done in a second step because once this is enabled, many pins become read only)
 	
 	//Setting up interupt
-	NVIC_EnableIRQ(USART3_4_IRQn);
-	NVIC_SetPriority(USART3_4_IRQn, 3);
+	//NVIC_EnableIRQ(USART3_4_IRQn);
+	//NVIC_SetPriority(USART3_4_IRQn, 3);
 	
 	
-
+	GPIOC->ODR |= 1<<9;
 	volatile char number;
 	transmitString("Message?\n\r");
 	new_message=1;
@@ -124,14 +140,20 @@ int main(void)
 		GPIOC->ODR &= ~(1<<7);
 		GPIOC->ODR &= ~(1<<8);
 		GPIOC->ODR &= ~(1<<9);
-
-		if(((USART3->ISR >> 5) & 1)){ //There is a new message to receive
-				get_message();
-			}
+		if(new_message){
+			USART3->RQR |= 1<<3;			//Flush out Receive data
+			get_message();
+		}
 	}
 }
 
 void get_message(void){
+		USART3->RQR |= ~(1<<2);		//Reciever in active mode
+		GPIOC->ODR |= (1<<9);
+		while(!((USART3->ISR >> 5) & 1)){
+			//hang until the number is recieved
+		}
+		GPIOC->ODR &= ~(1<<9);
 		volatile char letter;
 		letter = USART3->RDR; //The value received can be directly used as a char.
 		char message[13] = "";
@@ -155,10 +177,14 @@ void get_message(void){
 		message[counter] = '\0';
 		transmitString(message);
 		new_message = 0;
+		USART3->RQR |= 1<<2;		//Reciever in mute mode
 }
 
-void USART3_4_IRQHandler(void){
+
+void EXTI0_1_IRQHandler(void){
+	transmitString("Message?\n\r");
 	new_message = 1;
+	EXTI->PR |= 0x1; //Mark the Interrupt as handled.
 }
 
 
