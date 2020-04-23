@@ -34,30 +34,11 @@
 #include "main.h"
 #include "stm32f0xx_hal.h"
 
-/* USER CODE BEGIN Includes */
-
-/* USER CODE END Includes */
-
-/* Private variables ---------------------------------------------------------*/
-
-/* USER CODE BEGIN PV */
-/* Private variables ---------------------------------------------------------*/
-
-/* USER CODE END PV */
-
-/* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void Error_Handler(void);
 void get_message(void);
 
-/* USER CODE BEGIN PFP */
-/* Private function prototypes -----------------------------------------------*/
 
-/* USER CODE END PFP */
-
-/* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
 
 void transmit(char v){
 	GPIOC->ODR |= (1<<8);
@@ -78,6 +59,18 @@ void transmitString(char* word){
 	}
 }
 
+
+/*
+Sets up USART communication with the following ports enabled:
+PC10: USART - TX
+PC11: USART - RX
+PC12: USART - CLK
+BAUD RATE: 115200
+
+1. Will send "Message?" across USART when turned on. 
+2. Will wait for message to come through. A message is less than 10 characers long, and is followed by a "!"
+3. When the Blue Button is pressed, steps 1 & 2 will occur again.
+*/
 volatile int new_message;
 int main(void)
 {
@@ -100,13 +93,13 @@ int main(void)
 	//Setup Alternative Function
 	GPIOC->AFR[1] |= (1<<8) | (1<<12);
 	
-	//Setting up LEDs
+	//Setting up LEDs //TODO: Kylee you will need to change this to enable them as analog inputs
 	GPIOC->MODER |= 0x55000;
 	GPIOC->OTYPER = 0x000;
 	GPIOC->OSPEEDR = 0x0;
 	GPIOC->PUPDR = 0x0;
 	
-	//Setting up Button
+	//Setting up Blue Button
 	GPIOA->MODER &= ~3;
 	GPIOA->OSPEEDR &= ~3;	//Low speed
 	GPIOA->PUPDR |= 0x2; //Pull down resistor
@@ -121,11 +114,13 @@ int main(void)
 	
 	
 	USART3->CR1 |= 0xc;	//Enable Receiver + Transmitter
+	//TODO: Trying to MUTE USART when not waiting for a message. This will keep data from being sent unwanted to USART
 	//USART3->CR1 |= 5;	//Enable Receiver Interrupt
 	//USART3->CR1 |= 1<<13; //Mute Mode Enable. Can switch between Mute and Wake modes.
 	USART3->CR1 |= 0x1;	//Enable USART (Done in a second step because once this is enabled, many pins become read only)
 	
-	//Setting up interupt
+	//Setting up interupt TODO: 
+	// Optional - Interrupt which occurs when input is recieve. Will probably enable this at one point, but not right now.
 	//NVIC_EnableIRQ(USART3_4_IRQn);
 	//NVIC_SetPriority(USART3_4_IRQn, 3);
 	
