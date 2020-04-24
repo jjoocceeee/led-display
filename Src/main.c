@@ -71,6 +71,7 @@ void error(char* errorMessage)
 
 void dac()
 {
+	
 	char message[3] = {firstDigit, secondDigit, thirdDigit};
 	int value = atoi(message);
 	uint8_t val = value;
@@ -85,7 +86,7 @@ void USART1_IRQHandler(void)
 {
 	
 	char value = USART1->RDR;
-	sendChar(value);	//So the user sees what they type
+	//sendChar(value);	//So the user sees what they type in terminal; not useful for script
 	
 	//Get color mode, if we haven't yet.
 	if(!color) 
