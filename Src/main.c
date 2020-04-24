@@ -20,100 +20,132 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
+#include <stdio.h>
+#include <stdlib.h>
 
 void SystemClock_Config(void);
-static void MX_GPIO_Init(void);
 
+char color = 0;
+char firstDigit = 0, secondDigit = 0, thirdDigit = 0;
+int gotFirst = 0, gotSecond = 0;
+int promptPrinted = 0;
 
-uint8_t disp1ay[38][8]={
-{0x3C,0x42,0x42,0x42,0x42,0x42,0x42,0x3C},//0
-{0x10,0x30,0x50,0x10,0x10,0x10,0x10,0x7c},//1
-{0x7E,0x2,0x2,0x7E,0x40,0x40,0x40,0x7E},//2
-{0x3E,0x2,0x2,0x3E,0x2,0x2,0x3E,0x0},//3
-{0x8,0x18,0x28,0x48,0xFE,0x8,0x8,0x8},//4
-{0x3C,0x20,0x20,0x3C,0x4,0x4,0x3C,0x0},//5
-{0x3C,0x20,0x20,0x3C,0x24,0x24,0x3C,0x0},//6
-{0x3E,0x22,0x4,0x8,0x8,0x8,0x8,0x8},//7
-{0x0,0x3E,0x22,0x22,0x3E,0x22,0x22,0x3E},//8
-{0x3E,0x22,0x22,0x3E,0x2,0x2,0x2,0x3E},//9
-{0x18,0x24,0x42,0x42,0x7E,0x42,0x42,0x42},//A
-{0x3C,0x22,0x22,0x3c,0x22,0x22,0x3C,0x0},//B
-{0x3C,0x40,0x40,0x40,0x40,0x40,0x40,0x3C},//C
-{0x7C,0x22,0x22,0x22,0x22,0x22,0x22,0x7C},//D
-{0x7C,0x40,0x40,0x7C,0x40,0x40,0x40,0x7C},//E
-{0x7C,0x40,0x40,0x7C,0x40,0x40,0x40,0x40},//F
-{0x3C,0x40,0x40,0x40,0x4c,0x44,0x44,0x3C},//G
-{0x44,0x44,0x44,0x7C,0x44,0x44,0x44,0x44},//H
-{0x7C,0x10,0x10,0x10,0x10,0x10,0x10,0x7C},//I
-{0x3C,0x8,0x8,0x8,0x8,0x8,0x48,0x30},//J
-{0x0,0x24,0x28,0x30,0x20,0x30,0x28,0x24},//K
-{0x40,0x40,0x40,0x40,0x40,0x40,0x40,0x7C},//L
-{0x81,0xC3,0xA5,0x99,0x81,0x81,0x81,0x81},//M
-{0x0,0x42,0x62,0x52,0x4A,0x46,0x42,0x0},//N
-{0x3C,0x42,0x42,0x42,0x42,0x42,0x42,0x3C},//O
-{0x3C,0x22,0x22,0x22,0x3C,0x20,0x20,0x20},//P
-{0x1C,0x22,0x22,0x22,0x22,0x26,0x22,0x1D},//Q
-{0x3C,0x22,0x22,0x22,0x3C,0x24,0x22,0x21},//R
-{0x0,0x1E,0x20,0x20,0x3E,0x2,0x2,0x3C},//S
-{0x0,0x3E,0x8,0x8,0x8,0x8,0x8,0x8},//T
-{0x42,0x42,0x42,0x42,0x42,0x42,0x22,0x1C},//U
-{0x42,0x42,0x42,0x42,0x42,0x42,0x24,0x18},//V
-{0x0,0x49,0x49,0x49,0x49,0x2A,0x1C,0x0},//W
-{0x0,0x41,0x22,0x14,0x8,0x14,0x22,0x41},//X
-{0x41,0x22,0x14,0x8,0x8,0x8,0x8,0x8},//Y
-{0x0,0x7F,0x2,0x4,0x8,0x10,0x20,0x7F},//Z
-};
-
-void write_byte (uint8_t byte)
+void sendChar(char c)
 {
-	for (int i =0; i<8; i++)
+	
+	while(!(USART1->ISR & USART_ISR_TXE));
+		
+	USART1->TDR = c;
+}
+
+void sendString(char* str)
+{
+	
+	while(*str)
 	{
-		HAL_GPIO_WritePin (GPIOA, GPIO_PIN_5, 0);  // pull the clock pin low
-		HAL_GPIO_WritePin (GPIOA, GPIO_PIN_7, byte&0x80);  // write the MSB bit to the data pin
-		byte = byte<<1;  // shift left
-		HAL_GPIO_WritePin (GPIOA, GPIO_PIN_5, 1);  // pull the clock pin HIGH
+		sendChar(*str++);
 	}
 }
 
-void write_max (uint8_t address, uint8_t data)
+int isDigit(char value)
 {
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
-	HAL_GPIO_WritePin (GPIOA, GPIO_PIN_6, 0);  // pull the CS pin LOW
-	write_byte (address);
-	write_byte (data); 
-	HAL_GPIO_WritePin (GPIOA, GPIO_PIN_6, 1);  // pull the CS pin HIGH
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
+	
+	if(value == '0' || value == '1' || value == '2' || value == '3' || value == '4' ||
+		value == '5' || value == '6' || value == '7' || value == '8' || value == '9')
+		
+		return 1;
+	
+	return 0;
 }
 
-
-
-// function for init
-
-void max_init(void)
+void error(char* errorMessage)
 {
- write_max(0x09, 0x00);       //  no decoding
- write_max(0x0a, 0x03);       //  brightness intensity
- write_max(0x0b, 0x07);       //  scan limit = 8 LEDs
- write_max(0x0c, 0x01);       //  power down =0,normal mode = 1
- write_max(0x0f, 0x00);       //  no test display
+	
+	sendString(errorMessage);
+	
+	promptPrinted = 0;
+	gotFirst = 0;
+	gotSecond = 0;
+	color = 0;
 }
 
-void write_string (char *str)
+void dac()
 {
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
-	while (*str)
+	char message[3] = {firstDigit, secondDigit, thirdDigit};
+	int value = atoi(message);
+	uint8_t val = value;
+	
+	if(color == 'r')
+		DAC1->DHR8R1 = val;
+	else
+		DAC1->DHR8R2 = val;
+}
+
+void USART1_IRQHandler(void)
+{
+	
+	char value = USART1->RDR;
+	sendChar(value);	//So the user sees what they type
+	
+	//Get color mode, if we haven't yet.
+	if(!color) 
 	{
-		for(int i=1;i<9;i++)
-			   {
-			       write_max (i,disp1ay[(*str - 55)][i-1]);
-			   }
-		*str++;
-		HAL_Delay (500);
+		
+		if(value == 'r' || value == 'g')
+		{
+			color = value;
+			sendString("\r\nValue? (0-254)\r\n");
+			return;
+		}
+		
+		error("\r\nColor must be 'r' or 'g'\r\n");
+		return;
 	}
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
-}
+	
+	//Get first, second digits
+	if(!gotFirst) 
+	{
+		
+		if(isDigit(value))
+		{
+			firstDigit = value;
+			gotFirst = 1;
+			
+			return;
+		}
 
+		error("\r\nPlease enter a digit\r\n");
+		return;
+	}
+	
+	if(!gotSecond) 
+	{
+		
+		if(isDigit(value))
+		{
+			secondDigit = value;
+			gotSecond = 1;
+			
+			return;
+		}
+
+		error("\r\nPlease enter a digit\r\n");
+		return;
+	}
+	
+	//Grab final digit and feed to dac.
+	if(isDigit(value))
+	{
+		
+		thirdDigit = value;
+		dac();
+		error("\r\n");
+			
+		return;
+	}
+
+	error("\r\nPlease enter a digit\r\n");
+}
 
 /**
   * @brief  The application entry point.
@@ -122,64 +154,61 @@ void write_string (char *str)
 int main(void)
 {
 
- HAL_Init();
+  HAL_Init();
 
+  /* Configure the system clock */
   SystemClock_Config();
+	
 	__HAL_RCC_GPIOC_CLK_ENABLE();
+	__HAL_RCC_GPIOB_CLK_ENABLE();
 	
-	MX_GPIO_Init();
-	max_init ();
-	GPIO_InitTypeDef initStr = {GPIO_PIN_9,GPIO_MODE_OUTPUT_PP,GPIO_SPEED_FREQ_LOW, GPIO_NOPULL};
-	HAL_GPIO_Init(GPIOC, &initStr);
-	GPIO_InitTypeDef initStr3 = {GPIO_PIN_6| GPIO_PIN_7,GPIO_MODE_OUTPUT_PP,GPIO_SPEED_FREQ_LOW, GPIO_NOPULL};
-	HAL_GPIO_Init(GPIOC, &initStr3);
+	GPIO_InitTypeDef initStr2 = {GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_6 | GPIO_PIN_7, 
+															GPIO_MODE_OUTPUT_PP,
+															GPIO_SPEED_FREQ_LOW,
+															GPIO_NOPULL};
+																
 	
-	//Setting up LEDs for testing + error checking.
-	GPIO_InitTypeDef initStr2 = {GPIO_PIN_8, GPIO_MODE_INPUT,GPIO_SPEED_FREQ_LOW, GPIO_NOPULL};
+	GPIO_InitTypeDef initStr = {GPIO_PIN_6 | GPIO_PIN_7, 
+															GPIO_MODE_AF_PP,
+															GPIO_SPEED_FREQ_LOW,
+															GPIO_NOPULL};
+	
+	HAL_GPIO_Init(GPIOB, &initStr);
 	HAL_GPIO_Init(GPIOC, &initStr2);
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_SET);
+ 
+	GPIOB->AFR[0] &= ~(1 << 24);
+	GPIOB->AFR[0] &= ~(1 << 28);
+																							
+	RCC->APB2ENR |= RCC_APB2ENR_USART1EN;	
+	USART1->BRR = HAL_RCC_GetHCLKFreq() / 115200;
+	USART1->CR1 |= USART_CR1_TE | USART_CR1_RE;		 	
 	
+	USART1->CR1 |= USART_CR1_RXNEIE;
+	NVIC_EnableIRQ(USART1_IRQn);
+	NVIC_SetPriority(USART1_IRQn, 3);
+															
+	USART1->CR1 |= USART_CR1_UE;								
+										
+	 /* -------------- Now set up DAC! ------------------ */
+	RCC->APB1ENR |= RCC_APB1ENR_DACEN;
 	
-	while(1){
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_SET);
-		write_string ("HI");
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
-		HAL_Delay (1000);
-	}
-}
+	GPIOA->MODER |= GPIO_MODER_MODER4_0 | GPIO_MODER_MODER5_0;
+	
+	DAC1->SWTRIGR |= DAC_SWTRIGR_SWTRIG2 | DAC_SWTRIGR_SWTRIG1;
 
-/**
-  * @brief GPIO Initialization Function
-  * @param None
-  * @retval None
-  */
-	static void MX_GPIO_Init(void)
-	{
-		GPIO_InitTypeDef GPIO_InitStruct = {0};
-		GPIO_InitTypeDef GPIO_InitStruct2 = {0};
+	DAC1->CR |= DAC_CR_EN1 | DAC_CR_EN2;	//Finally, enable														
 
-		/* GPIO Ports Clock Enable */
-		__HAL_RCC_GPIOD_CLK_ENABLE();
-		__HAL_RCC_GPIOA_CLK_ENABLE();
-
-		/*Configure GPIO pin Output Level */
-		HAL_GPIO_WritePin(GPIOA, clock_Pin|cs_Pin|data_Pin, GPIO_PIN_RESET);
-
-		/*Configure GPIO pins : clock_Pin cs_Pin data_Pin */
-		GPIO_InitStruct2.Pin = data_Pin;
-		GPIO_InitStruct2.Mode = GPIO_MODE_AF_OD;
-		GPIO_InitStruct2.Pull = GPIO_PULLUP;
-		GPIO_InitStruct2.Speed = GPIO_SPEED_FREQ_LOW;
-		HAL_GPIO_Init(GPIOA, &GPIO_InitStruct2);
+	while (1)
+  {
 		
-		GPIO_InitStruct.Pin = clock_Pin|cs_Pin;
-		GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-		GPIO_InitStruct.Pull = GPIO_NOPULL;
-		GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-		HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-		GPIOB->AFR[0] = 0;
-
-	}
+		if(!promptPrinted) {
+			
+			sendString("Color? (r or g)\r\n");
+			promptPrinted = 1;
+		}
+		
+  }
+}
 
 /**
   * @brief System Clock Configuration
@@ -214,7 +243,6 @@ void SystemClock_Config(void)
   }
 }
 
-
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
@@ -239,7 +267,7 @@ void Error_Handler(void)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t *file, uint32_t line)
+void assert_failed(char *file, uint32_t line)
 { 
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
